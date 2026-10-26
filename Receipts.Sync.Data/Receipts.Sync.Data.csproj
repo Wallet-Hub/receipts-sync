@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <PackageId>WalletHub.Receipts.Sync.Data</PackageId>
+    <RepositoryUrl>https://github.com/Wallet-Hub/receipts-sync</RepositoryUrl>
+  </PropertyGroup>
+
+</Project>

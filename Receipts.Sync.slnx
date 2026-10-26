@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="Receipts.Sync.Data.EfCore/Receipts.Sync.Data.EfCore.csproj" />
+  <Project Path="Receipts.Sync.Data/Receipts.Sync.Data.csproj" />
+</Solution>
