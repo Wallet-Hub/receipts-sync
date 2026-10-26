@@ -1,4 +1,10 @@
 <Solution>
+  <Project Path="Receipts.Sync.Cli/Receipts.Sync.Cli.csproj" />
+  <Project Path="Receipts.Sync.Core/Receipts.Sync.Core.csproj" />
+  <Project Path="Receipts.Sync.Data.EfCore.Sqlite/Receipts.Sync.Data.EfCore.Sqlite.csproj" />
   <Project Path="Receipts.Sync.Data.EfCore/Receipts.Sync.Data.EfCore.csproj" />
   <Project Path="Receipts.Sync.Data/Receipts.Sync.Data.csproj" />
+  <Project Path="Receipts.Sync.Providers.GoogleDrive/Receipts.Sync.Providers.GoogleDrive.csproj" />
+  <Project Path="Receipts.Sync.Providers/Receipts.Sync.Providers.csproj" />
+  <Project Path="Receipts.Sync.Tests/Receipts.Sync.Tests.csproj" />
 </Solution>

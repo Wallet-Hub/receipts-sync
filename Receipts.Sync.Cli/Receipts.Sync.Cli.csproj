@@ -1,0 +1,26 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\Receipts.Sync.Core\Receipts.Sync.Core.csproj" />
+    <ProjectReference Include="..\Receipts.Sync.Providers\Receipts.Sync.Providers.csproj" />
+    <ProjectReference Include="..\Receipts.Sync.Providers.GoogleDrive\Receipts.Sync.Providers.GoogleDrive.csproj" />
+    <ProjectReference Include="..\Receipts.Sync.Data.EfCore.Sqlite\Receipts.Sync.Data.EfCore.Sqlite.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.14" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.14" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Update="appsettings.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

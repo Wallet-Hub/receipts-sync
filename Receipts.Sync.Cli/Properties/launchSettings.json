@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json.schemastore.org/launchsettings.json",
+  "profiles": {
+    "Receipts.Sync.Cli": {
+      "commandName": "Project",
+      "commandLineArgs": ""
+    },
+    "Scansione completa": {
+      "commandName": "Project",
+      "commandLineArgs": "",
+      "environmentVariables": {
+        "Logging__LogLevel__Default": "Information"
+      }
+    },
+    "Scansione dry-run": {
+      "commandName": "Project",
+      "commandLineArgs": "--dry-run",
+      "environmentVariables": {
+        "Logging__LogLevel__Default": "Information"
+      }
+    },
+    "Scansione con log SQL": {
+      "commandName": "Project",
+      "commandLineArgs": "--dry-run",
+      "environmentVariables": {
+        "Logging__LogLevel__Default": "Information",
+        "Logging__LogLevel__Microsoft.EntityFrameworkCore.Database.Command": "Information"
+      }
+    },
+    "Scansione provider singolo": {
+      "commandName": "Project",
+      "commandLineArgs": "--provider 1 --dry-run",
+      "environmentVariables": {
+        "Logging__LogLevel__Default": "Information"
+      }
+    },
+    "Database di sviluppo": {
+      "commandName": "Project",
+      "commandLineArgs": "--dry-run",
+      "environmentVariables": {
+        "ConnectionStrings__ReceiptsSync": "Data Source=receipts-sync.dev.db",
+        "Logging__LogLevel__Default": "Information"
+      }
+    },
+    "Aiuto": {
+      "commandName": "Project",
+      "commandLineArgs": "--help"
+    }
+  }
+}
