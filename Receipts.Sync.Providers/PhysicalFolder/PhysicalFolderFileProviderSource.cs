@@ -62,9 +62,7 @@ namespace Receipts.Sync.Providers.PhysicalFolder
                 {
                     var file = new FileInfo(path);
                     if (!file.Exists)
-                    {
                         continue;
-                    }
 
                     sizeInBytes = file.Length;
                     createdAt = file.CreationTimeUtc;

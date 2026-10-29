@@ -1,8 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.IO;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
@@ -24,6 +22,9 @@ namespace Receipts.Sync.Cli
     {
         private static async Task<int> Main(string[] args)
         {
+            using ILoggerFactory startupLoggerFactory = LoggerFactory.Create(loggingBuilder => loggingBuilder.AddConsole());
+            ILogger startupLogger = startupLoggerFactory.CreateLogger("Receipts.Sync.Cli");
+
             CommandLineArguments arguments;
 
             try
@@ -32,14 +33,14 @@ namespace Receipts.Sync.Cli
             }
             catch (ArgumentException ex)
             {
-                await Console.Error.WriteLineAsync(ex.Message);
-                return 2;
+                startupLogger.LogError("Invalid command-line arguments: {Error}", ex.Message);
+                return ExitCodes.InvalidArguments;
             }
 
             if (arguments.ShowHelp)
             {
-                await Console.Out.WriteLineAsync(CommandLineArguments.Usage);
-                return 0;
+                startupLogger.LogInformation("{Usage}", CommandLineArguments.Usage);
+                return ExitCodes.Success;
             }
 
             HostApplicationBuilder builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings
@@ -81,96 +82,35 @@ namespace Receipts.Sync.Cli
                 IReadOnlyCollection<int>? providerIds = null;
                 if (arguments.Providers.Count > 0)
                 {
-                    providerIds = await ResolveProviderIdsAsync(db, arguments.Providers, logger, shutdown.Token);
+                    providerIds = await ProviderIdResolver.ResolveAsync(db, arguments.Providers, logger, shutdown.Token);
                     if (providerIds is null)
-                    {
-                        return 2;
-                    }
+                        return ExitCodes.InvalidArguments;
                 }
 
                 ReceiptSyncService syncService = services.GetRequiredService<ReceiptSyncService>();
-                var syncOptions = new SyncOptions { ProviderIds = providerIds, DryRun = arguments.DryRun };
+                var syncOptions = new SyncOptions
+                {
+                    ProviderIds = providerIds,
+                    DryRun = arguments.DryRun
+                };
 
                 SyncSummary summary = await syncService.SyncAsync(syncOptions, shutdown.Token);
 
-                await WriteSummaryAsync(summary, arguments.DryRun);
-                return summary.HasErrors ? 1 : 0;
+                SyncSummaryLogger.Log(summary, arguments.DryRun, logger);
+                return summary.HasErrors ? ExitCodes.Failure : ExitCodes.Success;
             }
             catch (OperationCanceledException)
             {
                 logger.LogWarning("Synchronization cancelled.");
-                return 130;
+
+                return ExitCodes.Cancelled;
             }
             catch (Exception ex)
             {
                 logger.LogError(ex, "Synchronization failed.");
-                return 1;
+
+                return ExitCodes.Failure;
             }
-        }
-
-        private static async Task<IReadOnlyCollection<int>?> ResolveProviderIdsAsync(ExpenseReceiptDbContext db, IReadOnlyList<string> requested, ILogger logger,
-            CancellationToken cancellationToken)
-        {
-            List<ProviderReference> available = await db.FileProviders
-                .AsNoTracking()
-                .Select(p => new ProviderReference(p.Id, p.Name))
-                .ToListAsync(cancellationToken);
-
-            var ids = new List<int>(requested.Count);
-
-            foreach (string value in requested)
-            {
-                ProviderReference? match = available.FirstOrDefault(p => string.Equals(p.Name, value, StringComparison.OrdinalIgnoreCase))
-                    ?? available.FirstOrDefault(p => p.Id.ToString(CultureInfo.InvariantCulture) == value);
-
-                if (match is null)
-                {
-                    logger.LogError("Unknown provider '{Provider}'. Available providers: {Available}", value,
-                        available.Count == 0 ? "(none)" : string.Join(", ", available.Select(p => $"{p.Id} ({p.Name})")));
-
-                    return null;
-                }
-
-                if (!ids.Contains(match.Id))
-                {
-                    ids.Add(match.Id);
-                }
-            }
-
-            return ids;
-        }
-
-        private static async Task WriteSummaryAsync(SyncSummary summary, bool dryRun)
-        {
-            if (dryRun)
-            {
-                await Console.Out.WriteLineAsync("Dry run: no changes were written to the database.");
-            }
-
-            if (summary.Providers.Count == 0)
-            {
-                await Console.Out.WriteLineAsync("No enabled file provider was found. Insert a row in FileProviders to start scanning.");
-                return;
-            }
-
-            foreach (ProviderSyncResult provider in summary.Providers)
-            {
-                await Console.Out.WriteLineAsync(
-                    $"  {provider.ProviderName} [{provider.ProviderType}]: " +
-                    $"{provider.FilesDiscovered} discovered, {provider.FilesAdded} added, {provider.FilesUpdated} updated, " +
-                    $"{provider.FilesUnchanged} unchanged, {provider.FilesFailed} failed");
-
-                foreach (string error in provider.Errors)
-                {
-                    await Console.Out.WriteLineAsync($"    - {error}");
-                }
-            }
-
-            await Console.Out.WriteLineAsync(
-                $"Total: {summary.FilesDiscovered} discovered, {summary.FilesAdded} added, {summary.FilesUpdated} updated, " +
-                $"{summary.FilesUnchanged} unchanged, {summary.FilesFailed} failed.");
         }
     }
-
-    internal sealed record ProviderReference(int Id, string Name);
 }

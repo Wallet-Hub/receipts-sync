@@ -61,9 +61,7 @@ namespace Receipts.Sync.Cli.Commands
 
                     case "--provider":
                         if (index + 1 >= args.Length)
-                        {
                             throw new ArgumentException("'--provider' requires a value.");
-                        }
 
                         providers.Add(args[++index]);
                         break;

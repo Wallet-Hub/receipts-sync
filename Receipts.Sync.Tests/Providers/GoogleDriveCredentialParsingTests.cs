@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text.Json;
 using Google.Apis.Auth.OAuth2;
+using Receipts.Sync.Providers.GoogleDrive;
 
 namespace Receipts.Sync.Tests.Providers
 {
@@ -22,9 +23,24 @@ namespace Receipts.Sync.Tests.Providers
             };
             string credentialsJson = JsonSerializer.Serialize(credentials);
 
-            ServiceAccountCredential serviceAccountCredential = CredentialFactory
-                .FromJson<ServiceAccountCredential>(credentialsJson);
-            GoogleCredential credential = serviceAccountCredential.ToGoogleCredential();
+            GoogleCredential credential = new ServiceAccountGoogleDriveCredentialFactory().Create(credentialsJson);
+
+            Assert.NotNull(credential);
+        }
+
+        [Fact]
+        public void AuthorizedUserJson_CreatesGoogleCredential()
+        {
+            Dictionary<string, string> credentials = new()
+            {
+                ["type"] = "authorized_user",
+                ["client_id"] = "test-client",
+                ["client_secret"] = "test-secret",
+                ["refresh_token"] = "test-refresh-token",
+            };
+            string credentialsJson = JsonSerializer.Serialize(credentials);
+
+            GoogleCredential credential = new AuthorizedUserGoogleDriveCredentialFactory().Create(credentialsJson);
 
             Assert.NotNull(credential);
         }

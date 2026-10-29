@@ -42,6 +42,7 @@ namespace Receipts.Sync.Core.Sync
             if (providers.Count == 0)
             {
                 _logger.LogWarning("No enabled file provider matches the request: nothing to scan.");
+
                 return new SyncSummary(results);
             }
 
@@ -55,6 +56,7 @@ namespace Receipts.Sync.Core.Sync
                     result.RecordFailure($"No file provider source is registered for '{provider.ProviderType}'.");
 
                     _logger.LogError("No file provider source is registered for '{ProviderType}' (provider '{ProviderName}').", provider.ProviderType, provider.Name);
+
                     continue;
                 }
 
@@ -142,9 +144,7 @@ namespace Receipts.Sync.Core.Sync
             }
 
             if (!options.DryRun)
-            {
                 await _db.SaveChangesAsync(cancellationToken);
-            }
         }
 
         private async Task UpsertAsync(ProviderContext provider, IFileProviderSource source, ProviderFileInfo file, Dictionary<string, ExpenseFileReceipt> knownReceipts,
@@ -158,9 +158,7 @@ namespace Receipts.Sync.Core.Sync
                 result.RecordAdded();
 
                 if (options.DryRun)
-                {
                     return;
-                }
 
                 string hash = await ComputeHashAsync(source, provider, file, cancellationToken);
 
@@ -199,9 +197,7 @@ namespace Receipts.Sync.Core.Sync
             result.RecordUpdated();
 
             if (options.DryRun)
-            {
                 return;
-            }
 
             ApplyMetadata(receipt, file, currentHash, createdAt, updatedAt);
         }
@@ -221,26 +217,18 @@ namespace Receipts.Sync.Core.Sync
         private bool CanReuseHash(ExpenseFileReceipt receipt, ProviderFileInfo file)
         {
             if (string.IsNullOrEmpty(receipt.Hash))
-            {
                 return false;
-            }
 
             if (!string.Equals(receipt.HashAlgorithm, _hasher.AlgorithmName, StringComparison.OrdinalIgnoreCase))
-            {
                 return false;
-            }
 
             // The provider reports neither a size nor a timestamp: there is no cheap way to know
             // whether the content changed, so it is hashed again.
             if (file.SizeInBytes is not { } size || receipt.SizeInBytes != size)
-            {
                 return false;
-            }
 
             if (file.UpdatedAt is not { } updatedAt)
-            {
                 return false;
-            }
 
             return Math.Abs((receipt.UpdatedAt - updatedAt).TotalSeconds) < 1;
         }
@@ -248,6 +236,7 @@ namespace Receipts.Sync.Core.Sync
         private async Task<string> ComputeHashAsync(IFileProviderSource source, ProviderContext provider, ProviderFileInfo file, CancellationToken cancellationToken)
         {
             await using Stream content = await source.OpenReadAsync(provider, file, cancellationToken);
+
             return await _hasher.ComputeHashAsync(content, cancellationToken);
         }
     }

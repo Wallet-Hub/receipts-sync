@@ -12,27 +12,19 @@ namespace Receipts.Sync.Providers
         public static bool Matches(string? fileName, IReadOnlyList<string>? extensions)
         {
             if (extensions is null || extensions.Count == 0)
-            {
                 return true;
-            }
 
             if (string.IsNullOrWhiteSpace(fileName))
-            {
                 return false;
-            }
 
             foreach (string? extension in extensions)
             {
                 if (string.IsNullOrWhiteSpace(extension))
-                {
                     continue;
-                }
 
                 string? normalized = extension[0] == '.' ? extension : "." + extension;
                 if (fileName.EndsWith(normalized, StringComparison.OrdinalIgnoreCase))
-                {
                     return true;
-                }
             }
 
             return false;

@@ -14,6 +14,11 @@ namespace Receipts.Sync.Providers.GoogleDrive
             ArgumentNullException.ThrowIfNull(services);
 
             services.TryAddSingleton<IGoogleDriveCredentialsProvider, FileGoogleDriveCredentialsProvider>();
+            services.TryAddSingleton<GoogleDriveCredentialFactory>();
+            services.TryAddEnumerable(
+                ServiceDescriptor.Singleton<IGoogleDriveCredentialFactory, ServiceAccountGoogleDriveCredentialFactory>());
+            services.TryAddEnumerable(
+                ServiceDescriptor.Singleton<IGoogleDriveCredentialFactory, AuthorizedUserGoogleDriveCredentialFactory>());
             return services.AddFileProviderSource<GoogleDriveFileProviderSource>();
         }
     }
