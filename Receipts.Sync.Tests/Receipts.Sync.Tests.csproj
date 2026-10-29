@@ -21,6 +21,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Receipts.Sync.Core\Receipts.Sync.Core.csproj" />
     <ProjectReference Include="..\Receipts.Sync.Providers\Receipts.Sync.Providers.csproj" />
+    <ProjectReference Include="..\Receipts.Sync.Providers.GoogleDrive\Receipts.Sync.Providers.GoogleDrive.csproj" />
     <ProjectReference Include="..\Receipts.Sync.Data.EfCore.Sqlite\Receipts.Sync.Data.EfCore.Sqlite.csproj" />
   </ItemGroup>
 

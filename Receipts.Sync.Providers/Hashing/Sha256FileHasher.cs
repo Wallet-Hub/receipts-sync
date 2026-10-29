@@ -13,7 +13,7 @@ namespace Receipts.Sync.Providers.Hashing
         {
             ArgumentNullException.ThrowIfNull(content);
 
-            byte[] hash = await SHA256.HashDataAsync(content, cancellationToken).ConfigureAwait(false);
+            byte[] hash = await SHA256.HashDataAsync(content, cancellationToken);
 
             return Convert.ToHexStringLower(hash);
         }

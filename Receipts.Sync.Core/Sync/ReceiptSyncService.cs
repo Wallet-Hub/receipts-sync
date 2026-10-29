@@ -143,7 +143,7 @@ namespace Receipts.Sync.Core.Sync
 
             if (!options.DryRun)
             {
-                await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+                await _db.SaveChangesAsync(cancellationToken);
             }
         }
 
@@ -162,7 +162,7 @@ namespace Receipts.Sync.Core.Sync
                     return;
                 }
 
-                string hash = await ComputeHashAsync(source, provider, file, cancellationToken).ConfigureAwait(false);
+                string hash = await ComputeHashAsync(source, provider, file, cancellationToken);
 
                 receipt = new ExpenseFileReceipt
                 {
@@ -179,7 +179,7 @@ namespace Receipts.Sync.Core.Sync
             bool hashUnchanged = CanReuseHash(receipt, file);
             string currentHash = hashUnchanged
                 ? receipt.Hash
-                : await ComputeHashAsync(source, provider, file, cancellationToken).ConfigureAwait(false);
+                : await ComputeHashAsync(source, provider, file, cancellationToken);
 
             bool changed = !string.Equals(receipt.Hash, currentHash, StringComparison.Ordinal)
                 || !string.Equals(receipt.HashAlgorithm, _hasher.AlgorithmName, StringComparison.Ordinal)

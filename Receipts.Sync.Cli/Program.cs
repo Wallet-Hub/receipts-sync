@@ -49,8 +49,7 @@ namespace Receipts.Sync.Cli
             });
 
             builder.Configuration
-                .AddJsonFile(Path.Combine(Directory.GetCurrentDirectory(), "appsettings.json"), optional: true, reloadOnChange: false)
-                .AddEnvironmentVariables("RECEIPTS_SYNC_");
+                .AddJsonFile(Path.Combine(Directory.GetCurrentDirectory(), "appsettings.json"), optional: true, reloadOnChange: false);
 
             string? connectionString = builder.Configuration.GetConnectionString("ReceiptsSync");
             ArgumentNullException.ThrowIfNull(connectionString, "Connection string 'ReceiptsSync' is not configured.");

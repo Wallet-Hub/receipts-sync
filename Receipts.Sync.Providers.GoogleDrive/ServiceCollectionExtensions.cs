@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Receipts.Sync.Providers.GoogleDrive
 {
@@ -12,6 +13,7 @@ namespace Receipts.Sync.Providers.GoogleDrive
         {
             ArgumentNullException.ThrowIfNull(services);
 
+            services.TryAddSingleton<IGoogleDriveCredentialsProvider, FileGoogleDriveCredentialsProvider>();
             return services.AddFileProviderSource<GoogleDriveFileProviderSource>();
         }
     }

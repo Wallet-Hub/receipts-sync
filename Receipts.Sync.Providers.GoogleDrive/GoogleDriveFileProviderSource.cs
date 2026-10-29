@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
+using System.Text.Json;
 using Google.Apis.Auth.OAuth2;
 using Google.Apis.Drive.v3;
 using Google.Apis.Services;
@@ -23,13 +24,20 @@ namespace Receipts.Sync.Providers.GoogleDrive
         private const string GoogleWorkspaceMimeTypePrefix = "application/vnd.google-apps.";
 
         private readonly ConcurrentDictionary<(int ProviderId, string Configuration), DriveService> _services = new();
+        private readonly IGoogleDriveCredentialsProvider _credentialsProvider;
+
+        public GoogleDriveFileProviderSource(IGoogleDriveCredentialsProvider credentialsProvider)
+        {
+            ArgumentNullException.ThrowIfNull(credentialsProvider);
+            _credentialsProvider = credentialsProvider;
+        }
 
         public FileProviderType ProviderType => FileProviderType.GoogleDrive;
 
         public async IAsyncEnumerable<ProviderFileInfo> EnumerateFilesAsync(ProviderContext provider, [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
             GoogleDriveOptions options = ProviderConfiguration.Read<GoogleDriveOptions>(provider);
-            DriveService service = GetService(provider, options);
+            DriveService service = await GetServiceAsync(provider, options, cancellationToken);
 
             if (!string.IsNullOrWhiteSpace(options.Query))
             {
@@ -96,7 +104,7 @@ namespace Receipts.Sync.Providers.GoogleDrive
             ArgumentNullException.ThrowIfNull(file);
 
             GoogleDriveOptions options = ProviderConfiguration.Read<GoogleDriveOptions>(provider);
-            DriveService service = GetService(provider, options);
+            DriveService service = await GetServiceAsync(provider, options, cancellationToken);
 
             FilesResource.GetRequest request = service.Files.Get(file.ExternalId);
             request.SupportsAllDrives = options.IncludeSharedDrives;
@@ -151,7 +159,7 @@ namespace Receipts.Sync.Providers.GoogleDrive
                 request.IncludeItemsFromAllDrives = options.IncludeSharedDrives;
                 request.SupportsAllDrives = options.IncludeSharedDrives;
 
-                DriveFileList page = await request.ExecuteAsync(cancellationToken).ConfigureAwait(false);
+                DriveFileList page = await request.ExecuteAsync(cancellationToken);
                 if (page.Files is not null)
                 {         
                     foreach (DriveFile file in page.Files)
@@ -212,14 +220,27 @@ namespace Receipts.Sync.Providers.GoogleDrive
             return folderId;
         }
 
-        private DriveService GetService(ProviderContext provider, GoogleDriveOptions options)
+        private async Task<DriveService> GetServiceAsync(ProviderContext provider, GoogleDriveOptions options, CancellationToken cancellationToken)
         {
-            return _services.GetOrAdd((provider.Id, provider.Configuration ?? string.Empty), _ => CreateService(provider, options));
+            (int ProviderId, string Configuration) key = (provider.Id, provider.Configuration ?? string.Empty);
+            if (_services.TryGetValue(key, out DriveService? existingService))
+            {
+                return existingService;
+            }
+
+            DriveService createdService = await CreateServiceAsync(provider, options, cancellationToken);
+            if (_services.TryAdd(key, createdService))
+            {
+                return createdService;
+            }
+
+            createdService.Dispose();
+            return _services[key];
         }
 
-        private static DriveService CreateService(ProviderContext provider, GoogleDriveOptions options)
+        private async Task<DriveService> CreateServiceAsync(ProviderContext provider, GoogleDriveOptions options, CancellationToken cancellationToken)
         {
-            GoogleCredential credential = CreateCredential(provider, options);
+            GoogleCredential credential = await CreateCredentialAsync(provider, options, cancellationToken);
 
             return new DriveService(new BaseClientService.Initializer
             {
@@ -228,24 +249,32 @@ namespace Receipts.Sync.Providers.GoogleDrive
             });
         }
 
-        private static GoogleCredential CreateCredential(ProviderContext provider, GoogleDriveOptions options)
+        private async Task<GoogleCredential> CreateCredentialAsync(ProviderContext provider, GoogleDriveOptions options, CancellationToken cancellationToken)
         {
-            GoogleCredential credential;
+            await using Stream credentialsStream = await _credentialsProvider
+                .OpenReadAsync(provider, options, cancellationToken);
 
-            if (!string.IsNullOrWhiteSpace(options.CredentialsPath))
-            {
-                string path = Path.GetFullPath(options.CredentialsPath);
-                if (!File.Exists(path))
-                {
-                    throw new FileProviderConfigurationException($"The credentials file '{path}' of provider '{provider.Name}' does not exist.");
-                }
+            using StreamReader reader = new(credentialsStream);
+            string credentialsJson = await reader.ReadToEndAsync(cancellationToken);
 
-                credential = CredentialFactory.FromFile(path, credentialType: null);
-            }
-            else
+            using JsonDocument credentialsDocument = JsonDocument.Parse(credentialsJson);
+            JsonElement credentialsRoot = credentialsDocument.RootElement;
+            
+            if (credentialsRoot.ValueKind != JsonValueKind.Object || !credentialsRoot.TryGetProperty("type", out JsonElement credentialTypeElement) 
+                || credentialTypeElement.ValueKind != JsonValueKind.String)
             {
-                throw new FileProviderConfigurationException($"Provider '{provider.Name}' requires 'credentialsPath'. Credentials must not be stored in the provider configuration.");
+                throw new FileProviderConfigurationException(
+                    $"The credentials for provider '{provider.Name}' must declare a supported credential type.");
             }
+
+            string? credentialType = credentialTypeElement.GetString();
+            GoogleCredential credential = credentialType switch
+            {
+                "service_account" => CredentialFactory.FromJson<ServiceAccountCredential>(credentialsJson).ToGoogleCredential(),
+                "authorized_user" => CredentialFactory.FromJson<UserCredential>(credentialsJson).ToGoogleCredential(),
+                _ => throw new FileProviderConfigurationException(
+                    $"Provider '{provider.Name}' has unsupported credential type '{credentialType}'. Supported types are 'service_account' and 'authorized_user'."),
+            };
 
             credential = credential.CreateScoped(DriveService.Scope.DriveReadonly);
 
