@@ -9,8 +9,7 @@ namespace Receipts.Sync.Data.EfCore.Sqlite
         /// <summary>
         /// Name of the assembly holding the SQLite migrations of <see cref="ExpenseReceiptDbContext"/>.
         /// </summary>
-        internal static readonly string MigrationsAssembly =
-            typeof(SqliteServiceCollectionExtensions).Assembly.GetName().Name!;
+        internal static readonly string MigrationsAssembly = typeof(SqliteServiceCollectionExtensions).Assembly.GetName().Name!;
 
         /// <summary>
         /// Registers <see cref="ExpenseReceiptDbContext"/> against a SQLite database.

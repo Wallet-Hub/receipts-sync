@@ -13,12 +13,6 @@ namespace Receipts.Sync.Providers.GoogleDrive
         public string? CredentialsPath { get; set; }
 
         /// <summary>
-        /// Alternative to <see cref="CredentialsPath"/>: name of the environment variable holding the
-        /// credentials JSON. Use this to keep secrets out of the database.
-        /// </summary>
-        public string? CredentialsJsonEnvironmentVariable { get; set; }
-
-        /// <summary>
         /// Optional user to impersonate through domain-wide delegation (service accounts only).
         /// </summary>
         public string? ImpersonateUser { get; set; }

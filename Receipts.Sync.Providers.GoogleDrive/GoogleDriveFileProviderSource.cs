@@ -71,7 +71,7 @@ namespace Receipts.Sync.Providers.GoogleDrive
                 }
 
                 string folderQuery = $"'{folderId}' in parents and trashed = false";
-                await foreach (var file in ListFilesAsync(service, folderQuery, options, cancellationToken))
+                await foreach (DriveFile file in ListFilesAsync(service, folderQuery, options, cancellationToken))
                 {
                     if (string.Equals(file.MimeType, FolderMimeType, StringComparison.Ordinal))
                     {
@@ -115,20 +115,20 @@ namespace Receipts.Sync.Providers.GoogleDrive
 
             try
             {
-                await request.DownloadAsync(stream, cancellationToken).ConfigureAwait(false);
+                await request.DownloadAsync(stream, cancellationToken);
                 stream.Position = 0;
                 return stream;
             }
             catch
             {
-                await stream.DisposeAsync().ConfigureAwait(false);
+                await stream.DisposeAsync();
                 throw;
             }
         }
 
         public void Dispose()
         {
-            foreach (var service in _services.Values)
+            foreach (DriveService service in _services.Values)
             {
                 service.Dispose();
             }
@@ -154,7 +154,7 @@ namespace Receipts.Sync.Providers.GoogleDrive
                 DriveFileList page = await request.ExecuteAsync(cancellationToken).ConfigureAwait(false);
                 if (page.Files is not null)
                 {         
-                    foreach (Google.Apis.Drive.v3.Data.File? file in page.Files)
+                    foreach (DriveFile file in page.Files)
                     {
                         yield return file;
                     }
@@ -224,9 +224,7 @@ namespace Receipts.Sync.Providers.GoogleDrive
             return new DriveService(new BaseClientService.Initializer
             {
                 HttpClientInitializer = credential,
-                ApplicationName = string.IsNullOrWhiteSpace(options.ApplicationName)
-                    ? "receipts-sync"
-                    : options.ApplicationName,
+                ApplicationName = options.ApplicationName,
             });
         }
 
@@ -234,33 +232,19 @@ namespace Receipts.Sync.Providers.GoogleDrive
         {
             GoogleCredential credential;
 
-            if (!string.IsNullOrWhiteSpace(options.CredentialsJsonEnvironmentVariable))
+            if (!string.IsNullOrWhiteSpace(options.CredentialsPath))
             {
-                string? json = Environment.GetEnvironmentVariable(options.CredentialsJsonEnvironmentVariable);
-                if (string.IsNullOrWhiteSpace(json))
-                {
-                    throw new FileProviderConfigurationException(
-                        $"The environment variable '{options.CredentialsJsonEnvironmentVariable}' referenced by provider '{provider.Name}' is not set.");
-                }
-
-                credential = CredentialFactory.FromJson(json, credentialType: null);
-            }
-            else if (!string.IsNullOrWhiteSpace(options.CredentialsPath))
-            {
-                string path = Path.GetFullPath(Environment.ExpandEnvironmentVariables(options.CredentialsPath));
+                string path = Path.GetFullPath(options.CredentialsPath);
                 if (!File.Exists(path))
                 {
-                    throw new FileProviderConfigurationException(
-                        $"The credentials file '{path}' of provider '{provider.Name}' does not exist.");
+                    throw new FileProviderConfigurationException($"The credentials file '{path}' of provider '{provider.Name}' does not exist.");
                 }
 
                 credential = CredentialFactory.FromFile(path, credentialType: null);
             }
             else
             {
-                throw new FileProviderConfigurationException(
-                    $"Provider '{provider.Name}' requires 'credentialsPath' or 'credentialsJsonEnvironmentVariable'. " +
-                    "Credentials must not be stored in the provider configuration.");
+                throw new FileProviderConfigurationException($"Provider '{provider.Name}' requires 'credentialsPath'. Credentials must not be stored in the provider configuration.");
             }
 
             credential = credential.CreateScoped(DriveService.Scope.DriveReadonly);

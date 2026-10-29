@@ -21,11 +21,7 @@ namespace Receipts.Sync.Core.Sync
         private readonly IFileHasher _hasher;
         private readonly ILogger<ReceiptSyncService> _logger;
 
-        public ReceiptSyncService(
-            ExpenseReceiptDbContext db,
-            IFileProviderSourceRegistry sources,
-            IFileHasher hasher,
-            ILogger<ReceiptSyncService> logger)
+        public ReceiptSyncService(ExpenseReceiptDbContext db, IFileProviderSourceRegistry sources, IFileHasher hasher, ILogger<ReceiptSyncService> logger)
         {
             _db = db;
             _sources = sources;
@@ -40,7 +36,7 @@ namespace Receipts.Sync.Core.Sync
         {
             options ??= new SyncOptions();
 
-            List<FileProvider> providers = await GetProvidersAsync(options, cancellationToken).ConfigureAwait(false);
+            List<FileProvider> providers = await GetProvidersAsync(options, cancellationToken);
             var results = new List<ProviderSyncResult>(providers.Count);
 
             if (providers.Count == 0)
@@ -49,7 +45,7 @@ namespace Receipts.Sync.Core.Sync
                 return new SyncSummary(results);
             }
 
-            foreach (var provider in providers)
+            foreach (FileProvider provider in providers)
             {
                 var result = new ProviderSyncResult(provider.Id, provider.Name, provider.ProviderType);
                 results.Add(result);
@@ -57,22 +53,18 @@ namespace Receipts.Sync.Core.Sync
                 if (!_sources.TryGetSource(provider.ProviderType, out IFileProviderSource? source))
                 {
                     result.RecordFailure($"No file provider source is registered for '{provider.ProviderType}'.");
-                    _logger.LogError(
-                        "No file provider source is registered for '{ProviderType}' (provider '{ProviderName}').",
-                        provider.ProviderType,
-                        provider.Name);
+
+                    _logger.LogError("No file provider source is registered for '{ProviderType}' (provider '{ProviderName}').", provider.ProviderType, provider.Name);
                     continue;
                 }
 
-                _logger.LogInformation(
-                    "Scanning {ProviderType} provider '{ProviderName}'...",
-                    provider.ProviderType,
-                    provider.Name);
+                _logger.LogInformation("Scanning {ProviderType} provider '{ProviderName}'...", provider.ProviderType, provider.Name);
 
                 try
                 {
-                    await SyncProviderAsync(provider.ToProviderContext(), source, options, result, cancellationToken)
-                        .ConfigureAwait(false);
+                    ProviderContext providerContext = provider.ToProviderContext();
+
+                    await SyncProviderAsync(providerContext, source, options, result, cancellationToken);
                 }
                 catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                 {
@@ -113,36 +105,28 @@ namespace Receipts.Sync.Core.Sync
             return await query
                 .OrderBy(p => p.Name)
                 .AsNoTracking()
-                .ToListAsync(cancellationToken)
-                .ConfigureAwait(false);
+                .ToListAsync(cancellationToken);
         }
 
-        private async Task SyncProviderAsync(
-            ProviderContext provider,
-            IFileProviderSource source,
-            SyncOptions options,
-            ProviderSyncResult result,
-            CancellationToken cancellationToken)
+        private async Task SyncProviderAsync(ProviderContext provider, IFileProviderSource source, SyncOptions options, ProviderSyncResult result, CancellationToken cancellationToken)
         {
             Dictionary<string, ExpenseFileReceipt> knownReceipts = await _db.ExpenseFileReceipts
                 .Where(r => r.FileProviderId == provider.Id)
-                .ToDictionaryAsync(r => r.ExternalId, StringComparer.Ordinal, cancellationToken)
-                .ConfigureAwait(false);
+                .ToDictionaryAsync(r => r.ExternalId, StringComparer.Ordinal, cancellationToken);
 
-            var pendingChanges = 0;
+            int pendingChanges = 0;
 
-            await foreach (var file in source.EnumerateFilesAsync(provider, cancellationToken).WithCancellation(cancellationToken))
+            await foreach (ProviderFileInfo file in source.EnumerateFilesAsync(provider, cancellationToken).WithCancellation(cancellationToken))
             {
                 result.RecordDiscovered();
 
                 try
                 {
-                    await UpsertAsync(provider, source, file, knownReceipts, options, result, cancellationToken)
-                        .ConfigureAwait(false);
+                    await UpsertAsync(provider, source, file, knownReceipts, options, result, cancellationToken);
 
                     if (!options.DryRun && ++pendingChanges >= SaveBatchSize)
                     {
-                        await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+                        await _db.SaveChangesAsync(cancellationToken);
                         pendingChanges = 0;
                     }
                 }
@@ -153,11 +137,7 @@ namespace Receipts.Sync.Core.Sync
                 catch (Exception ex)
                 {
                     result.RecordFailure($"{file.ExternalId}: {ex.Message}");
-                    _logger.LogWarning(
-                        ex,
-                        "File '{ExternalId}' of provider '{ProviderName}' could not be processed.",
-                        file.ExternalId,
-                        provider.Name);
+                    _logger.LogWarning(ex, "File '{ExternalId}' of provider '{ProviderName}' could not be processed.", file.ExternalId, provider.Name);
                 }
             }
 
@@ -167,14 +147,8 @@ namespace Receipts.Sync.Core.Sync
             }
         }
 
-        private async Task UpsertAsync(
-            ProviderContext provider,
-            IFileProviderSource source,
-            ProviderFileInfo file,
-            Dictionary<string, ExpenseFileReceipt> knownReceipts,
-            SyncOptions options,
-            ProviderSyncResult result,
-            CancellationToken cancellationToken)
+        private async Task UpsertAsync(ProviderContext provider, IFileProviderSource source, ProviderFileInfo file, Dictionary<string, ExpenseFileReceipt> knownReceipts,
+            SyncOptions options, ProviderSyncResult result, CancellationToken cancellationToken)
         {
             DateTime createdAt = file.CreatedAt ?? file.UpdatedAt ?? DateTime.UtcNow;
             DateTime updatedAt = file.UpdatedAt ?? createdAt;
@@ -271,14 +245,10 @@ namespace Receipts.Sync.Core.Sync
             return Math.Abs((receipt.UpdatedAt - updatedAt).TotalSeconds) < 1;
         }
 
-        private async Task<string> ComputeHashAsync(
-            IFileProviderSource source,
-            ProviderContext provider,
-            ProviderFileInfo file,
-            CancellationToken cancellationToken)
+        private async Task<string> ComputeHashAsync(IFileProviderSource source, ProviderContext provider, ProviderFileInfo file, CancellationToken cancellationToken)
         {
-            await using Stream content = await source.OpenReadAsync(provider, file, cancellationToken).ConfigureAwait(false);
-            return await _hasher.ComputeHashAsync(content, cancellationToken).ConfigureAwait(false);
+            await using Stream content = await source.OpenReadAsync(provider, file, cancellationToken);
+            return await _hasher.ComputeHashAsync(content, cancellationToken);
         }
     }
 }

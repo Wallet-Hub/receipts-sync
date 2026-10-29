@@ -128,9 +128,8 @@ to `rootPath`; paths resolving outside `rootPath` are rejected.
 }
 ```
 
-- Provide the credentials with `credentialsPath` **or** `credentialsJsonEnvironmentVariable`: the name
-  of an environment variable holding the service account JSON. Credentials must never be stored in the
-  database.
+- Provide credentials through `credentialsPath`, pointing to a credentials JSON file. Credentials must
+  never be stored in the database.
 - `folderId` scans that folder (recursively by default); `query` takes a raw Drive query instead
   (`name contains 'receipt' and trashed = false`); with neither, every file visible to the credentials
   is scanned.

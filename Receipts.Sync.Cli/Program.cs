@@ -53,10 +53,7 @@ namespace Receipts.Sync.Cli
                 .AddEnvironmentVariables("RECEIPTS_SYNC_");
 
             string? connectionString = builder.Configuration.GetConnectionString("ReceiptsSync");
-            if (string.IsNullOrWhiteSpace(connectionString))
-            {
-                connectionString = "Data Source=receipts-sync.db";
-            }
+            ArgumentNullException.ThrowIfNull(connectionString, "Connection string 'ReceiptsSync' is not configured.");
 
             builder.Services
                 .AddFileProviderScanning()
